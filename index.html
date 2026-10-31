@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Concierge & F&B - Gestione Coperti</title>
+  <title>Concierge & F&B - Gestione Coperti Partner</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     :root {
@@ -92,14 +92,15 @@
       font-weight: 600;
       cursor: pointer;
       font-size: 1rem;
-      transition: opacity 0.2s;
     }
 
-    button:hover {
-      opacity: 0.9;
+    button:hover { opacity: 0.9; }
+
+    .inline-group {
+      display: flex;
+      gap: 10px;
     }
 
-    /* Tab per Ristoranti */
     .restaurant-sections {
       display: flex;
       flex-direction: column;
@@ -173,10 +174,12 @@
       padding: 6px 12px;
       font-size: 0.85rem;
     }
+    .btn-delete:hover { background: var(--danger); color: white; }
 
-    .btn-delete:hover {
-      background: var(--danger);
-      color: white;
+    .btn-secondary {
+      background-color: #334155;
+      font-size: 0.9rem;
+      padding: 10px 14px;
     }
   </style>
 </head>
@@ -184,19 +187,27 @@
 
   <div class="container">
     <header>
-      <h1>Gestione Coperti Ristoranti</h1>
-      <p>Pannello condiviso Reception & Guest Relations</p>
+      <h1>Rendicontazione Coperti Partner</h1>
+      <p>Controllo flussi e prenotazioni ristoranti esterni</p>
     </header>
+
+    <!-- SEZIONE GESTIONE RISTORANTI PARTNER -->
+    <div class="card">
+      <h3 style="margin-top:0; font-size:1.1rem;">Aggiungi o Gestisci Ristoranti Partner</h3>
+      <div class="inline-group">
+        <input type="text" id="newRestoName" placeholder="Nome nuovo ristorante...">
+        <button type="button" class="btn-secondary" onclick="addRestaurant()">Aggiungi Ristorante</button>
+      </div>
+    </div>
 
     <!-- FORM NUOVA PRENOTAZIONE -->
     <div class="card">
+      <h3 style="margin-top:0; font-size:1.1rem;">Nuova Prenotazione Ospite</h3>
       <form id="bookingForm" class="grid-form">
         <div>
-          <label for="restaurant">Ristorante Target</label>
+          <label for="restaurant">Ristorante Partner</label>
           <select id="restaurant" required>
-            <option value="Ristorante Principale">Ristorante Principale</option>
-            <option value="Bistrot & Lounge">Bistrot & Lounge</option>
-            <option value="Giardino / Terrazza">Giardino / Terrazza</option>
+            <!-- Caricato dinamicamente -->
           </select>
         </div>
 
@@ -212,7 +223,7 @@
 
         <div>
           <label for="pax">N° Coperti (Persone)</label>
-          <input type="number" id="pax" min="1" max="20" value="2" required>
+          <input type="number" id="pax" min="1" max="50" value="2" required>
         </div>
 
         <div>
@@ -221,7 +232,7 @@
         </div>
 
         <div>
-          <label for="areaType">Area / Menù Specifico</label>
+          <label for="areaType">Area / Servizio</label>
           <select id="areaType">
             <option value="Standard">Standard / Generico</option>
             <option value="Lato Ristorante">Lato Ristorante</option>
@@ -230,12 +241,12 @@
         </div>
 
         <div class="full-width">
-          <button type="submit">Registra Prenotazione</button>
+          <button type="submit">Invia Prenotazione al Locale</button>
         </div>
       </form>
     </div>
 
-    <!-- ELENCO PRENOTAZIONI DIVISO PER RISTORANTE -->
+    <!-- ELENCO PRENOTAZIONI E TOTALI PER FATTURAZIONE -->
     <div id="displayArea" class="restaurant-sections">
       <!-- Generato dinamicamente via JS -->
     </div>
@@ -244,21 +255,39 @@
   <script>
     const socket = io();
     let currentBookings = [];
+    let currentRestaurants = [];
 
     const form = document.getElementById('bookingForm');
     const displayArea = document.getElementById('displayArea');
+    const restoSelect = document.getElementById('restaurant');
 
     socket.on('init', (data) => {
-      currentBookings = data;
+      currentBookings = data.bookings;
+      currentRestaurants = data.restaurants;
       render();
     });
+
+    function addRestaurant() {
+      const input = document.getElementById('newRestoName');
+      const name = input.value.trim();
+      if (name) {
+        socket.emit('add_restaurant', name);
+        input.value = '';
+      }
+    }
+
+    window.deleteRestaurant = function(name) {
+      if (confirm(`Vuoi rimuovere il ristorante "${name}" e tutte le prenotazioni collegate?`)) {
+        socket.emit('delete_restaurant', name);
+      }
+    };
 
     form.addEventListener('submit', (e) => {
       e.preventDefault();
 
       const newBooking = {
         id: Date.now().toString(),
-        restaurant: document.getElementById('restaurant').value,
+        restaurant: restoSelect.value,
         guestName: document.getElementById('guestName').value,
         roomNumber: document.getElementById('roomNumber').value,
         pax: document.getElementById('pax').value,
@@ -277,56 +306,59 @@
     };
 
     function render() {
+      // Aggiorna select ristoranti nel form
+      restoSelect.innerHTML = currentRestaurants.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
+
       displayArea.innerHTML = '';
 
-      if (currentBookings.length === 0) {
-        displayArea.innerHTML = '<div class="card" style="text-align:center; color: var(--text-muted);">Nessuna prenotazione presente per oggi.</div>';
+      if (currentRestaurants.length === 0) {
+        displayArea.innerHTML = '<div class="card" style="text-align:center; color: var(--text-muted);">Nessun ristorante configurato. Aggiungine uno sopra.</div>';
         return;
       }
 
-      // Raggruppa per Ristorante
-      const grouped = currentBookings.reduce((acc, item) => {
-        if (!acc[item.restaurant]) acc[item.restaurant] = [];
-        acc[item.restaurant].push(item);
-        return acc;
-      }, {});
-
-      for (const [resto, items] of Object.entries(grouped)) {
+      currentRestaurants.forEach(resto => {
+        const items = currentBookings.filter(b => b.restaurant === resto);
         const totalPax = items.reduce((sum, i) => sum + parseInt(i.pax || 0), 0);
         
         let html = `
           <div class="restaurant-card">
             <div class="restaurant-header">
-              <span class="restaurant-title">${escapeHtml(resto)}</span>
-              <span style="color: var(--text-muted); font-size: 0.9rem;">Totale coperti: <strong>${totalPax}</strong></span>
+              <div>
+                <span class="restaurant-title">${escapeHtml(resto)}</span>
+                <span style="display:block; color: var(--text-muted); font-size: 0.85rem; margin-top:2px;">Totale Coperti Mese/Oggi: <strong>${totalPax} PAX</strong></span>
+              </div>
+              <button class="btn-delete" style="padding:4px 8px; font-size:0.75rem;" onclick="deleteRestaurant('${escapeHtml(resto)}')">Elimina Locale</button>
             </div>
         `;
 
-        items.forEach(b => {
-          let tagClass = '';
-          if (b.areaType === 'Lato Ristorante') tagClass = 'tag-ristorante';
-          if (b.areaType === 'Lato Pizzeria') tagClass = 'tag-pizzeria';
+        if (items.length === 0) {
+          html += `<div style="color: var(--text-muted); font-size: 0.9rem; padding: 6px 0;">Nessuna prenotazione attiva per questo partner.</div>`;
+        } else {
+          items.forEach(b => {
+            let tagClass = '';
+            if (b.areaType === 'Lato Ristorante') tagClass = 'tag-ristorante';
+            if (b.areaType === 'Lato Pizzeria') tagClass = 'tag-pizzeria';
+            const tagHtml = tagClass ? `<span class="tag ${tagClass}">${b.areaType}</span>` : '';
 
-          const tagHtml = tagClass ? `<span class="tag ${tagClass}">${b.areaType}</span>` : '';
-
-          html += `
-            <div class="booking-item">
-              <div class="booking-details">
-                <div class="booking-main">
-                  Cam. ${escapeHtml(b.roomNumber)} - ${escapeHtml(b.guestName)} (${b.pax} pax) ${tagHtml}
+            html += `
+              <div class="booking-item">
+                <div class="booking-details">
+                  <div class="booking-main">
+                    Cam. ${escapeHtml(b.roomNumber)} - ${escapeHtml(b.guestName)} (${b.pax} pax) ${tagHtml}
+                  </div>
+                  <div class="booking-sub">
+                    🕒 Orario: <strong>${b.time}</strong>
+                  </div>
                 </div>
-                <div class="booking-sub">
-                  🕒 Orario: <strong>${b.time}</strong>
-                </div>
+                <button class="btn-delete" onclick="deleteBooking('${b.id}')">Rimuovi</button>
               </div>
-              <button class="btn-delete" onclick="deleteBooking('${b.id}')">Rimuovi</button>
-            </div>
-          `;
-        });
+            `;
+          });
+        }
 
         html += `</div>`;
         displayArea.innerHTML += html;
-      }
+      });
     }
 
     function escapeHtml(str) {
