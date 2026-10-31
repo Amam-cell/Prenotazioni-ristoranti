@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Concierge & F&B - Gestione Coperti Partner</title>
+  <title>Reception - Controllo Coperti & Pagamenti Partner</title>
   <script src="/socket.io/socket.io.js"></script>
   <style>
     :root {
@@ -14,12 +14,11 @@
       --text-muted: #94a3b8;
       --border: #334155;
       --danger: #ef4444;
-      --tag-pizzeria: #d97706;
-      --tag-ristorante: #2563eb;
+      --success: #10b981;
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background-color: var(--bg);
       color: var(--text);
       margin: 0;
@@ -27,7 +26,7 @@
     }
 
     .container {
-      max-width: 900px;
+      max-width: 950px;
       margin: 0 auto;
     }
 
@@ -38,12 +37,13 @@
 
     header h1 {
       margin: 0;
-      font-size: 1.8rem;
+      font-size: 1.7rem;
     }
 
     header p {
       color: var(--text-muted);
       margin-top: 6px;
+      font-size: 0.95rem;
     }
 
     .card {
@@ -51,12 +51,12 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 20px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
 
     .grid-form {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 14px;
     }
 
@@ -66,10 +66,11 @@
 
     label {
       display: block;
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: var(--text-muted);
       margin-bottom: 6px;
       font-weight: 600;
+      text-transform: uppercase;
     }
 
     input, select {
@@ -91,7 +92,7 @@
       border-radius: 8px;
       font-weight: 600;
       cursor: pointer;
-      font-size: 1rem;
+      font-size: 0.95rem;
     }
 
     button:hover { opacity: 0.9; }
@@ -101,85 +102,73 @@
       gap: 10px;
     }
 
-    .restaurant-sections {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
+    /* Sezioni report */
+    .report-section {
+      margin-top: 30px;
     }
 
-    .restaurant-card {
+    .partner-box {
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: 12px;
-      padding: 16px;
+      padding: 18px;
+      margin-bottom: 16px;
     }
 
-    .restaurant-header {
+    .partner-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--border);
-      padding-bottom: 10px;
+      padding-bottom: 12px;
       margin-bottom: 12px;
     }
 
-    .restaurant-title {
+    .partner-title {
       font-size: 1.2rem;
       font-weight: bold;
+      color: #38bdf8;
     }
 
-    .booking-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--bg);
-      border: 1px solid var(--border);
-      padding: 12px 14px;
-      border-radius: 8px;
-      margin-bottom: 8px;
+    .badge-total {
+      background-color: var(--success);
+      color: #064e3b;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-weight: bold;
+      font-size: 0.9rem;
     }
 
-    .booking-details {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
     }
 
-    .booking-main {
-      font-weight: 600;
-      font-size: 1rem;
+    th, td {
+      text-align: left;
+      padding: 10px;
+      border-bottom: 1px solid var(--border);
     }
 
-    .booking-sub {
-      font-size: 0.85rem;
+    th {
       color: var(--text-muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
     }
-
-    .tag {
-      font-size: 0.75rem;
-      padding: 2px 8px;
-      border-radius: 12px;
-      font-weight: 600;
-      display: inline-block;
-      margin-left: 8px;
-    }
-
-    .tag-ristorante { background-color: var(--tag-ristorante); color: white; }
-    .tag-pizzeria { background-color: var(--tag-pizzeria); color: white; }
 
     .btn-delete {
       background: transparent;
       color: var(--danger);
       border: 1px solid var(--danger);
-      padding: 6px 12px;
-      font-size: 0.85rem;
+      padding: 4px 8px;
+      font-size: 0.8rem;
+      border-radius: 6px;
     }
     .btn-delete:hover { background: var(--danger); color: white; }
 
     .btn-secondary {
       background-color: #334155;
-      font-size: 0.9rem;
-      padding: 10px 14px;
     }
   </style>
 </head>
@@ -187,42 +176,45 @@
 
   <div class="container">
     <header>
-      <h1>Rendicontazione Coperti Partner</h1>
-      <p>Controllo flussi e prenotazioni ristoranti esterni</p>
+      <h1>Gestione Interna Coperti & Ricalcolo Partner</h1>
+      <p>Strumento esclusivo Reception — Tracciamento invii per rendicontazione mensile</p>
     </header>
 
-    <!-- SEZIONE GESTIONE RISTORANTI PARTNER -->
+    <!-- AGGIUNGI RISTORANTE PARTNER -->
     <div class="card">
-      <h3 style="margin-top:0; font-size:1.1rem;">Aggiungi o Gestisci Ristoranti Partner</h3>
+      <label>Aggiungi Nuovo Ristorante Partner alla Lista</label>
       <div class="inline-group">
-        <input type="text" id="newRestoName" placeholder="Nome nuovo ristorante...">
-        <button type="button" class="btn-secondary" onclick="addRestaurant()">Aggiungi Ristorante</button>
+        <input type="text" id="newRestoName" placeholder="Es. Trattoria Da Mario...">
+        <button type="button" class="btn-secondary" onclick="addRestaurant()">Aggiungi</button>
       </div>
     </div>
 
-    <!-- FORM NUOVA PRENOTAZIONE -->
+    <!-- INSERISCI INVIO / PRENOTAZIONE -->
     <div class="card">
-      <h3 style="margin-top:0; font-size:1.1rem;">Nuova Prenotazione Ospite</h3>
+      <h3 style="margin-top:0; font-size:1.1rem; margin-bottom:14px;">Registra Invio Ospite</h3>
       <form id="bookingForm" class="grid-form">
         <div>
+          <label for="bookingDate">Data Invio</label>
+          <input type="date" id="bookingDate" required>
+        </div>
+
+        <div>
           <label for="restaurant">Ristorante Partner</label>
-          <select id="restaurant" required>
-            <!-- Caricato dinamicamente -->
-          </select>
+          <select id="restaurant" required></select>
+        </div>
+
+        <div>
+          <label for="roomNumber">N° Camera</label>
+          <input type="text" id="roomNumber" placeholder="Es. 204" required>
         </div>
 
         <div>
           <label for="guestName">Nome Ospite</label>
-          <input type="text" id="guestName" placeholder="Es. Rossi / Smith" required>
+          <input type="text" id="guestName" placeholder="Es. Rossi" required>
         </div>
 
         <div>
-          <label for="roomNumber">Numero Camera</label>
-          <input type="text" id="roomNumber" placeholder="Es. 104" required>
-        </div>
-
-        <div>
-          <label for="pax">N° Coperti (Persone)</label>
+          <label for="pax">N° Coperti (PAX)</label>
           <input type="number" id="pax" min="1" max="50" value="2" required>
         </div>
 
@@ -232,23 +224,22 @@
         </div>
 
         <div>
-          <label for="areaType">Area / Servizio</label>
-          <select id="areaType">
-            <option value="Standard">Standard / Generico</option>
-            <option value="Lato Ristorante">Lato Ristorante</option>
-            <option value="Lato Pizzeria">Lato Pizzeria</option>
-          </select>
+          <label for="notes">Note / Tipo (Opz.)</label>
+          <input type="text" id="notes" placeholder="Es. Lato Ristorante">
         </div>
 
         <div class="full-width">
-          <button type="submit">Invia Prenotazione al Locale</button>
+          <button type="submit">Salva in Lista Interna</button>
         </div>
       </form>
     </div>
 
-    <!-- ELENCO PRENOTAZIONI E TOTALI PER FATTURAZIONE -->
-    <div id="displayArea" class="restaurant-sections">
-      <!-- Generato dinamicamente via JS -->
+    <!-- REPORT E LISTE PER FINE MESE -->
+    <div class="report-section">
+      <h2 style="font-size: 1.3rem; margin-bottom: 16px;">Riepilogo e Totali per Chiusura Contabile</h2>
+      <div id="reportContainer">
+        <!-- Generato via JS -->
+      </div>
     </div>
   </div>
 
@@ -258,8 +249,11 @@
     let currentRestaurants = [];
 
     const form = document.getElementById('bookingForm');
-    const displayArea = document.getElementById('displayArea');
+    const reportContainer = document.getElementById('reportContainer');
     const restoSelect = document.getElementById('restaurant');
+
+    // Imposta la data odierna di default nel form
+    document.getElementById('bookingDate').valueAsDate = new Date();
 
     socket.on('init', (data) => {
       currentBookings = data.bookings;
@@ -277,7 +271,7 @@
     }
 
     window.deleteRestaurant = function(name) {
-      if (confirm(`Vuoi rimuovere il ristorante "${name}" e tutte le prenotazioni collegate?`)) {
+      if (confirm(`Eliminare il ristorante "${name}" e lo storico associato?`)) {
         socket.emit('delete_restaurant', name);
       }
     };
@@ -287,17 +281,22 @@
 
       const newBooking = {
         id: Date.now().toString(),
+        date: document.getElementById('bookingDate').value,
         restaurant: restoSelect.value,
-        guestName: document.getElementById('guestName').value,
         roomNumber: document.getElementById('roomNumber').value,
-        pax: document.getElementById('pax').value,
+        guestName: document.getElementById('guestName').value,
+        pax: parseInt(document.getElementById('pax').value) || 0,
         time: document.getElementById('time').value,
-        areaType: document.getElementById('areaType').value
+        notes: document.getElementById('notes').value || '-'
       };
 
       currentBookings.push(newBooking);
       socket.emit('update_bookings', currentBookings);
-      form.reset();
+      
+      // Resetta solo alcuni campi mantenendo la data odierna
+      document.getElementById('roomNumber').value = '';
+      document.getElementById('guestName').value = '';
+      document.getElementById('notes').value = '';
     });
 
     window.deleteBooking = function(id) {
@@ -306,51 +305,91 @@
     };
 
     function render() {
-      // Aggiorna select ristoranti nel form
       restoSelect.innerHTML = currentRestaurants.map(r => `<option value="${escapeHtml(r)}">${escapeHtml(r)}</option>`).join('');
 
-      displayArea.innerHTML = '';
+      reportContainer.innerHTML = '';
 
       if (currentRestaurants.length === 0) {
-        displayArea.innerHTML = '<div class="card" style="text-align:center; color: var(--text-muted);">Nessun ristorante configurato. Aggiungine uno sopra.</div>';
+        reportContainer.innerHTML = '<div class="card" style="text-align:center; color: var(--text-muted);">Nessun ristorante inserito. Aggiungine uno sopra.</div>';
         return;
       }
 
       currentRestaurants.forEach(resto => {
+        // Filtra gli invii per questo ristorante
         const items = currentBookings.filter(b => b.restaurant === resto);
-        const totalPax = items.reduce((sum, i) => sum + parseInt(i.pax || 0), 0);
-        
+        // Calcola il totale dei coperti inviati a questo partner
+        const totalPax = items.reduce((sum, i) => sum + i.pax, 0);
+
         let html = `
-          <div class="restaurant-card">
-            <div class="restaurant-header">
+          <div class="partner-box">
+            <div class="partner-header">
               <div>
-                <span class="restaurant-title">${escapeHtml(resto)}</span>
-                <span style="display:block; color: var(--text-muted); font-size: 0.85rem; margin-top:2px;">Totale Coperti Mese/Oggi: <strong>${totalPax} PAX</strong></span>
+                <span class="partner-title">${escapeHtml(resto)}</span>
+                <span style="display:block; font-size: 0.85rem; color: var(--text-muted); margin-top:2px;">Totale invii registrati: ${items.length}</span>
               </div>
-              <button class="btn-delete" style="padding:4px 8px; font-size:0.75rem;" onclick="deleteRestaurant('${escapeHtml(resto)}')">Elimina Locale</button>
+              <div style="display: flex; align-items: center; gap: 14px;">
+                <span class="badge-total">TOTALE: ${totalPax} COPERTI</span>
+                <button class="btn-delete" style="font-size:0.75rem;" onclick="deleteRestaurant('${escapeHtml(resto)}')">Elimina Partner</button>
+              </div>
             </div>
         `;
 
         if (items.length === 0) {
-          html += `<div style="color: var(--text-muted); font-size: 0.9rem; padding: 6px 0;">Nessuna prenotazione attiva per questo partner.</div>`;
+          html += `<p style="color: var(--text-muted); font-size: 0.9rem; margin: 10px 0;">Nessun ospite inviato a questo ristorante.</p>`;
         } else {
-          items.forEach(b => {
-            let tagClass = '';
-            if (b.areaType === 'Lato Ristorante') tagClass = 'tag-ristorante';
-            if (b.areaType === 'Lato Pizzeria') tagClass = 'tag-pizzeria';
-            const tagHtml = tagClass ? `<span class="tag ${tagClass}">${b.areaType}</span>` : '';
+          html += `
+            <div style="overflow-x: auto;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Data</th>
+                    <th>Orario</th>
+                    <th>Camera</th>
+                    <th>Ospite</th>
+                    <th>Coperti (PAX)</th>
+                    <th>Note</th>
+                    <th>Azione</th>
+                  </tr>
+                </thead>
+                <tbody>
+          `;
 
+          // Ordina per data dal più recente o viceversa
+          items.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+          items.forEach(b => {
             html += `
-              <div class="booking-item">
-                <div class="booking-details">
-                  <div class="booking-main">
-                    Cam. ${escapeHtml(b.roomNumber)} - ${escapeHtml(b.guestName)} (${b.pax} pax) ${tagHtml}
-                  </div>
-                  <div class="booking-sub">
-                    🕒 Orario: <strong>${b.time}</strong>
-                  </div>
-                </div>
-                <button class="btn-delete" onclick="deleteBooking('${b.id}')">Rimuovi</button>
+              <tr>
+                <td>${escapeHtml(b.date)}</td>
+                <td>${escapeHtml(b.time)}</td>
+                <td><strong>Cam. ${escapeHtml(b.roomNumber)}</strong></td>
+                <td>${escapeHtml(b.guestName)}</td>
+                <td><strong style="color: #38bdf8;">${b.pax} PAX</strong></td>
+                <td>${escapeHtml(b.notes)}</td>
+                <td><button class="btn-delete" onclick="deleteBooking('${b.id}')">Rimuovi</button></td>
+              </tr>
+            `;
+          });
+
+          html += `
+                </tbody>
+              </table>
+            </div>
+          `;
+        }
+
+        html += `</div>`;
+        reportContainer.innerHTML += html;
+      });
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+    }
+  </script>
+</body>
+</html>
+class="btn-delete" onclick="deleteBooking('${b.id}')">Rimuovi</button>
               </div>
             `;
           });
