@@ -15,7 +15,7 @@ if (fs.existsSync(DATA_FILE)) {
   try { bookings = JSON.parse(fs.readFileSync(DATA_FILE)); } catch(e) {}
 }
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(__dirname));
 
 io.on('connection', (socket) => {
   socket.emit('init', bookings);
@@ -31,3 +31,4 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server cloud attivo su porta ${PORT}`);
 });
+
