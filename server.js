@@ -8,15 +8,15 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const DATA_FILE = path.join(__dirname, 'prenotazioni.json');
-const RESTOS_FILE = path.join(__dirname, 'ristoranti.json');
+const DATA_FILE = path.join(__dirname, 'prenotazioni_reception.json');
+const RESTOS_FILE = path.join(__dirname, 'ristoranti_partner.json');
 
 let bookings = [];
 if (fs.existsSync(DATA_FILE)) {
   try { bookings = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (e) { bookings = []; }
 }
 
-let restaurants = ['Ristorante Partner 1', 'Ristorante Partner 2'];
+let restaurants = ['Ristorante Partner A', 'Ristorante Partner B'];
 if (fs.existsSync(RESTOS_FILE)) {
   try { restaurants = JSON.parse(fs.readFileSync(RESTOS_FILE, 'utf8')); } catch (e) { }
 }
@@ -50,5 +50,5 @@ io.on('connection', (socket) => {
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server attivo su porta ${PORT}`);
+  console.log(`Server reception attivo su porta ${PORT}`);
 });
