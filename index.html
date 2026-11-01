@@ -15,6 +15,7 @@
             --text-muted: #94a3b8;
             --border: #334155;
             --danger: #ef4444;
+            --success: #10b981;
         }
 
         body {
@@ -150,6 +151,34 @@
             padding: 0;
             width: auto;
         }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .summary-box {
+            background-color: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .summary-box h3 {
+            margin: 0 0 8px 0;
+            font-size: 1rem;
+            color: var(--text-muted);
+        }
+
+        .summary-box .pax-count {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: var(--success);
+            margin: 0;
+        }
     </style>
 </head>
 <body>
@@ -208,9 +237,22 @@
             </form>
         </div>
 
+        <!-- Riepilogo Totali per Mese -->
+        <div class="card">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
+                <h2 style="margin: 0;">Totale Coperti per Mese</h2>
+                <div style="width: 200px;">
+                    <input type="month" id="filterMonth" onchange="renderBookings()">
+                </div>
+            </div>
+            <div class="summary-grid" id="monthlySummary">
+                <!-- Generato dinamicamente -->
+            </div>
+        </div>
+
         <!-- Riepilogo Tabellare -->
         <div class="card">
-            <h2>Riepilogo e Totali per Chiusura Contabile</h2>
+            <h2>Registro Inii / Prenotazioni</h2>
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
@@ -238,8 +280,10 @@
         let bookings = [];
         let restaurants = [];
 
-        // Imposta la data odierna di default nel form
-        document.getElementById('date').valueAsDate = new Date();
+        // Imposta la data odierna nel form e il mese corrente nel filtro
+        const today = new Date();
+        document.getElementById('date').valueAsDate = today;
+        document.getElementById('filterMonth').value = today.toISOString().slice(0, 7);
 
         socket.on('init', (data) => {
             bookings = data.bookings || [];
@@ -256,13 +300,11 @@
             tagsContainer.innerHTML = '';
 
             restaurants.forEach(rest => {
-                // Option per select
                 const opt = document.createElement('option');
                 opt.value = rest;
                 opt.textContent = rest;
                 select.appendChild(opt);
 
-                // Tag visivo con pulsante eliminazione
                 const tag = document.createElement('div');
                 tag.className = 'tag';
                 tag.innerHTML = `${escapeHtml(rest)} <button onclick="deleteRestaurant('${rest}')" title="Elimina">&times;</button>`;
@@ -300,7 +342,6 @@
             bookings.push(newBooking);
             socket.emit('update_bookings', bookings);
             
-            // Pulisci campi specifici
             document.getElementById('room').value = '';
             document.getElementById('guest').value = '';
             document.getElementById('notes').value = '';
@@ -312,6 +353,79 @@
         }
 
         function renderBookings() {
+            const tbody = document.getElementById('bookingsTableBody');
+            const summaryContainer = document.getElementById('monthlySummary');
+            const selectedMonth = document.getElementById('filterMonth').value; // Formato "YYYY-MM"
+            
+            tbody.innerHTML = '';
+            summaryContainer.innerHTML = '';
+
+            // Filtra i dati per il mese selezionato
+            const filteredBookings = bookings.filter(b => {
+                if (!b.date) return false;
+                return b.date.startsWith(selectedMonth);
+            });
+
+            // Calcola i totali PAX per ogni ristorante nel mese selezionato
+            const totalsByRestaurant = {};
+            restaurants.forEach(r => totalsByRestaurant[r] = 0);
+
+            filteredBookings.forEach(b => {
+                if (totalsByRestaurant[b.restaurant] !== undefined) {
+                    totalsByRestaurant[b.restaurant] += (b.pax || 0);
+                } else {
+                    totalsByRestaurant[b.restaurant] = (b.pax || 0);
+                }
+            });
+
+            // Disegna i box di riepilogo mensile per ristorante
+            Object.keys(totalsByRestaurant).forEach(rest => {
+                const totalPax = totalsByRestaurant[rest];
+                const box = document.createElement('div');
+                box.className = 'summary-box';
+                box.innerHTML = `
+                    <h3>${escapeHtml(rest)}</h3>
+                    <p class="pax-count">${totalPax} <span style="font-size: 1rem; color: var(--text-muted);">PAX</span></p>
+                `;
+                summaryContainer.appendChild(box);
+            });
+
+            // Riempie la tabella con i dati filtrati (ordinati per data decrescente)
+            filteredBookings.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if (filteredBookings.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Nessuna prenotazione registrata per questo mese.</td></tr>';
+                return;
+            }
+
+            filteredBookings.forEach(b => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${escapeHtml(b.date)}</td>
+                    <td><strong>${escapeHtml(b.restaurant)}</strong></td>
+                    <td>${escapeHtml(b.room)}</td>
+                    <td>${escapeHtml(b.guest)}</td>
+                    <td>${b.pax}</td>
+                    <td>${escapeHtml(b.time)}</td>
+                    <td>${escapeHtml(b.notes || '')}</td>
+                    <td><button class="btn-danger" onclick="deleteBooking('${b._id}')">Rimuovi</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;")
+                      .replace(/</g, "&lt;")
+                      .replace(/>/g, "&gt;")
+                      .replace(/"/g, "&quot;")
+                      .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
+gs() {
             const tbody = document.getElementById('bookingsTableBody');
             tbody.innerHTML = '';
 
