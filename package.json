@@ -1,13 +1,14 @@
 {
-  "name": "hotel-concierge",
+  "name": "prenotazioni-ristoranti",
   "version": "1.0.0",
-  "description": "Gestione coperti hotel",
+  "description": "Web app privata per tracciamento coperti reception albergo",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
+    "mongoose": "^8.0.0",
     "socket.io": "^4.7.2"
   }
 }
