@@ -44,55 +44,306 @@
         }
 
         .form-group {
-            margin-bottom: 
-      items.sort((a, b) => new Date(b.date) - new Date(a.date));
+            margin-bottom: 15px;
+        }
 
-          items.forEach(b => {
-            html += `
-              <tr>
-                <td>${escapeHtml(b.date)}</td>
-                <td>${escapeHtml(b.time)}</td>
-                <td><strong>Cam. ${escapeHtml(b.roomNumber)}</strong></td>
-                <td>${escapeHtml(b.guestName)}</td>
-                <td><strong style="color: #38bdf8;">${b.pax} PAX</strong></td>
-                <td>${escapeHtml(b.notes)}</td>
-                <td><button class="btn-delete" onclick="deleteBooking('${b.id}')">Rimuovi</button></td>
-              </tr>
-            `;
-          });
+        label {
+            display: block;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 6px;
+        }
 
-          html += `
-                </tbody>
-              </table>
+        input, select {
+            width: 100%;
+            padding: 10px 12px;
+            background-color: #0f172a;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: var(--primary-dark);
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            width: auto;
+            padding: 6px 12px;
+            font-size: 0.85rem;
+        }
+
+        .btn-danger:hover {
+            background-color: #dc2626;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.95rem;
+        }
+
+        th {
+            color: var(--text-muted);
+            font-weight: 600;
+        }
+
+        .restaurant-management {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .restaurant-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .tag {
+            background-color: #334155;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tag button {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-weight: bold;
+            padding: 0;
+            width: auto;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h1>Gestione Coperti Ristoranti</h1>
+        <p style="color: var(--text-muted); margin-top: -10px;">Tracciamento interno per chiusura contabile mensile</p>
+
+        <!-- Sezione Gestione Ristoranti Partner -->
+        <div class="card">
+            <h2>Ristoranti Partner</h2>
+            <div class="restaurant-tags" id="restaurantTags">
+                <!-- Generati dinamicamente -->
             </div>
-          `;
+            <div class="restaurant-management">
+                <input type="text" id="newRestaurantName" placeholder="Nome nuovo ristorante...">
+                <button type="button" onclick="addRestaurant()" style="width: 180px;">Aggiungi</button>
+            </div>
+        </div>
+
+        <!-- Form Inserimento Invio Ospite -->
+        <div class="card">
+            <h2>Registra Invio Ospite</h2>
+            <form id="bookingForm" onsubmit="submitBooking(event)">
+                <div class="form-group">
+                    <label>Data Invio</label>
+                    <input type="date" id="date" required>
+                </div>
+                <div class="form-group">
+                    <label>Ristorante Partner</label>
+                    <select id="restaurantSelect" required>
+                        <!-- Generati dinamicamente -->
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>N° Camera</label>
+                    <input type="text" id="room" placeholder="Es. 204" required>
+                </div>
+                <div class="form-group">
+                    <label>Nome Ospite</label>
+                    <input type="text" id="guest" placeholder="Es. Rossi" required>
+                </div>
+                <div class="form-group">
+                    <label>N° Coperti (PAX)</label>
+                    <input type="number" id="pax" min="1" value="2" required>
+                </div>
+                <div class="form-group">
+                    <label>Orario</label>
+                    <input type="time" id="time" required>
+                </div>
+                <div class="form-group">
+                    <label>Note / Tipo (Opz.)</label>
+                    <input type="text" id="notes" placeholder="Es. Lato Ristorante">
+                </div>
+                <button type="submit">Salva in Lista Interna</button>
+            </form>
+        </div>
+
+        <!-- Riepilogo Tabellare -->
+        <div class="card">
+            <h2>Riepilogo e Totali per Chiusura Contabile</h2>
+            <div style="overflow-x: auto;">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Ristorante</th>
+                            <th>Camera</th>
+                            <th>Ospite</th>
+                            <th>PAX</th>
+                            <th>Orario</th>
+                            <th>Note</th>
+                            <th>Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody id="bookingsTableBody">
+                        <!-- Dati dinamici -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let bookings = [];
+        let restaurants = [];
+
+        // Imposta la data odierna di default nel form
+        document.getElementById('date').valueAsDate = new Date();
+
+        socket.on('init', (data) => {
+            bookings = data.bookings || [];
+            restaurants = data.restaurants || [];
+            renderRestaurants();
+            renderBookings();
+        });
+
+        function renderRestaurants() {
+            const select = document.getElementById('restaurantSelect');
+            const tagsContainer = document.getElementById('restaurantTags');
+            
+            select.innerHTML = '';
+            tagsContainer.innerHTML = '';
+
+            restaurants.forEach(rest => {
+                // Option per select
+                const opt = document.createElement('option');
+                opt.value = rest;
+                opt.textContent = rest;
+                select.appendChild(opt);
+
+                // Tag visivo con pulsante eliminazione
+                const tag = document.createElement('div');
+                tag.className = 'tag';
+                tag.innerHTML = `${escapeHtml(rest)} <button onclick="deleteRestaurant('${rest}')" title="Elimina">&times;</button>`;
+                tagsContainer.appendChild(tag);
+            });
         }
 
-        html += `</div>`;
-        reportContainer.innerHTML += html;
-      });
-    }
-
-    function escapeHtml(str) {
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-    }
-  </script>
-</body>
-</html>
-class="btn-delete" onclick="deleteBooking('${b.id}')">Rimuovi</button>
-              </div>
-            `;
-          });
+        function addRestaurant() {
+            const input = document.getElementById('newRestaurantName');
+            const name = input.value.trim();
+            if (name && !restaurants.includes(name)) {
+                socket.emit('add_restaurant', name);
+                input.value = '';
+            }
         }
 
-        html += `</div>`;
-        displayArea.innerHTML += html;
-      });
-    }
+        function deleteRestaurant(name) {
+            if (confirm(`Vuoi eliminare il ristorante "${name}" e tutte le relative prenotazioni?`)) {
+                socket.emit('delete_restaurant', name);
+            }
+        }
 
-    function escapeHtml(str) {
-      return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-    }
-  </script>
+        function submitBooking(e) {
+            e.preventDefault();
+            const newBooking = {
+                date: document.getElementById('date').value,
+                restaurant: document.getElementById('restaurantSelect').value,
+                room: document.getElementById('room').value,
+                guest: document.getElementById('guest').value,
+                pax: parseInt(document.getElementById('pax').value),
+                time: document.getElementById('time').value,
+                notes: document.getElementById('notes').value
+            };
+
+            bookings.push(newBooking);
+            socket.emit('update_bookings', bookings);
+            
+            // Pulisci campi specifici
+            document.getElementById('room').value = '';
+            document.getElementById('guest').value = '';
+            document.getElementById('notes').value = '';
+        }
+
+        function deleteBooking(id) {
+            bookings = bookings.filter(b => b._id !== id);
+            socket.emit('update_bookings', bookings);
+        }
+
+        function renderBookings() {
+            const tbody = document.getElementById('bookingsTableBody');
+            tbody.innerHTML = '';
+
+            if (bookings.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Nessuna prenotazione registrata.</td></tr>';
+                return;
+            }
+
+            bookings.forEach(b => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${escapeHtml(b.date)}</td>
+                    <td><strong>${escapeHtml(b.restaurant)}</strong></td>
+                    <td>${escapeHtml(b.room)}</td>
+                    <td>${escapeHtml(b.guest)}</td>
+                    <td>${b.pax}</td>
+                    <td>${escapeHtml(b.time)}</td>
+                    <td>${escapeHtml(b.notes || '')}</td>
+                    <td><button class="btn-danger" onclick="deleteBooking('${b._id}')">Rimuovi</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;")
+                      .replace(/</g, "&lt;")
+                      .replace(/>/g, "&gt;")
+                      .replace(/"/g, "&quot;")
+                      .replace(/'/g, "&#039;");
+        }
+    </script>
 </body>
 </html>
