@@ -252,7 +252,7 @@
 
         <!-- Riepilogo Tabellare -->
         <div class="card">
-            <h2>Registro Inii / Prenotazioni</h2>
+            <h2>Registro Invii / Prenotazioni</h2>
             <div style="overflow-x: auto;">
                 <table>
                     <thead>
@@ -319,6 +319,109 @@
                 socket.emit('add_restaurant', name);
                 input.value = '';
             }
+        }
+
+        function deleteRestaurant(name) {
+            if (confirm(`Vuoi eliminare il ristorante "${name}" e tutte le relative prenotazioni?`)) {
+                socket.emit('delete_restaurant', name);
+            }
+        }
+
+        function submitBooking(e) {
+            e.preventDefault();
+            const newBooking = {
+                date: document.getElementById('date').value,
+                restaurant: document.getElementById('restaurantSelect').value,
+                room: document.getElementById('room').value,
+                guest: document.getElementById('guest').value,
+                pax: parseInt(document.getElementById('pax').value),
+                time: document.getElementById('time').value,
+                notes: document.getElementById('notes').value
+            };
+
+            bookings.push(newBooking);
+            socket.emit('update_bookings', bookings);
+            
+            document.getElementById('room').value = '';
+            document.getElementById('guest').value = '';
+            document.getElementById('notes').value = '';
+        }
+
+        function deleteBooking(id) {
+            bookings = bookings.filter(b => b._id !== id);
+            socket.emit('update_bookings', bookings);
+        }
+
+        function renderBookings() {
+            const tbody = document.getElementById('bookingsTableBody');
+            const summaryContainer = document.getElementById('monthlySummary');
+            const selectedMonth = document.getElementById('filterMonth').value;
+            
+            tbody.innerHTML = '';
+            summaryContainer.innerHTML = '';
+
+            const filteredBookings = bookings.filter(b => {
+                if (!b.date) return false;
+                return b.date.startsWith(selectedMonth);
+            });
+
+            const totalsByRestaurant = {};
+            restaurants.forEach(r => totalsByRestaurant[r] = 0);
+
+            filteredBookings.forEach(b => {
+                if (totalsByRestaurant[b.restaurant] !== undefined) {
+                    totalsByRestaurant[b.restaurant] += (b.pax || 0);
+                } else {
+                    totalsByRestaurant[b.restaurant] = (b.pax || 0);
+                }
+            });
+
+            Object.keys(totalsByRestaurant).forEach(rest => {
+                const totalPax = totalsByRestaurant[rest];
+                const box = document.createElement('div');
+                box.className = 'summary-box';
+                box.innerHTML = `
+                    <h3>${escapeHtml(rest)}</h3>
+                    <p class="pax-count">${totalPax} <span style="font-size: 1rem; color: var(--text-muted);">PAX</span></p>
+                `;
+                summaryContainer.appendChild(box);
+            });
+
+            filteredBookings.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            if (filteredBookings.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted);">Nessuna prenotazione registrata per questo mese.</td></tr>';
+                return;
+            }
+
+            filteredBookings.forEach(b => {
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${escapeHtml(b.date)}</td>
+                    <td><strong>${escapeHtml(b.restaurant)}</strong></td>
+                    <td>${escapeHtml(b.room)}</td>
+                    <td>${escapeHtml(b.guest)}</td>
+                    <td>${b.pax}</td>
+                    <td>${escapeHtml(b.time)}</td>
+                    <td>${escapeHtml(b.notes || '')}</td>
+                    <td><button class="btn-danger" onclick="deleteBooking('${b._id}')">Rimuovi</button></td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/&/g, "&amp;")
+                      .replace(/</g, "&lt;")
+                      .replace(/>/g, "&gt;")
+                      .replace(/"/g, "&quot;")
+                      .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
+      }
         }
 
         function deleteRestaurant(name) {
