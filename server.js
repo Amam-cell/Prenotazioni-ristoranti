@@ -1,54 +1,82 @@
 const express = require('express');
-const http = require('http');
+const http = http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
-const fs = require('fs');
+const mongoose = require('mongoose');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const DATA_FILE = path.join(__dirname, 'prenotazioni_reception.json');
-const RESTOS_FILE = path.join(__dirname, 'ristoranti_partner.json');
-
-let bookings = [];
-if (fs.existsSync(DATA_FILE)) {
-  try { bookings = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8')); } catch (e) { bookings = []; }
-}
-
-let restaurants = ['Ristorante Partner A', 'Ristorante Partner B'];
-if (fs.existsSync(RESTOS_FILE)) {
-  try { restaurants = JSON.parse(fs.readFileSync(RESTOS_FILE, 'utf8')); } catch (e) { }
-}
-
 app.use(express.static(__dirname));
 app.use(express.json());
 
-io.on('connection', (socket) => {
-  socket.emit('init', { bookings, restaurants });
+// Connessione a MongoDB Atlas (legge la variabile d'ambiente impostata su Render)
+const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/reception_db';
 
-  socket.on('update_bookings', (data) => {
-    bookings = data;
-    try { fs.writeFileSync(DATA_FILE, JSON.stringify(bookings, null, 2)); } catch (e) {}
-    io.emit('init', { bookings, restaurants });
-  });
+mongoose.connect(MONGO_URI)
+  .then(() => console.log('Connesso a MongoDB con successo!'))
+  .catch(err => console.error('Errore di connessione a MongoDB:', err));
 
-  socket.on('add_restaurant', (name) => {
-    if (name && !restaurants.includes(name)) {
-      restaurants.push(name);
-      try { fs.writeFileSync(RESTOS_FILE, JSON.stringify(restaurants, null, 2)); } catch (e) {}
-      io.emit('init', { bookings, restaurants });
-    }
-  });
+// Schema per i dati su MongoDB
+const dataSchema = new mongoose.Schema({
+  type: { type: String, required: true }, // 'booking' o 'restaurant'
+  payload: { type: Object, required: true }
+});
+const AppData = mongoose.model('AppData', dataSchema);
 
-  socket.on('delete_restaurant', (name) => {
-    restaurants = restaurants.filter(r => r !== name);
-    try { fs.writeFileSync(RESTOS_FILE, JSON.stringify(restaurants, null, 2)); } catch (e) {}
-    io.emit('init', { bookings, restaurants });
-  });
+io.on('connection', async (socket) => {
+  try {
+    const records = await AppData.find({});
+    const bookings = records.filter(r => r.type === 'booking').map(r => ({ ...r.payload, _id: r._id }));
+    const restaurants = records.filter(r => r.type === 'restaurant').map(r => r.payload.name);
+
+    // Se non ci sono ristoranti salvati, ne mettiamo di default
+    const finalRestaurants = restaurants.length > 0 ? restaurants : ['Ristorante Partner A', 'Ristorante Partner B'];
+
+    socket.emit('init', { bookings, restaurants: finalRestaurants });
+
+    // Aggiornamento prenotazioni
+    socket.on('update_bookings', async (newBookings) => {
+      await AppData.deleteMany({ type: 'booking' });
+      for (const b of newBookings) {
+        await AppData.create({ type: 'booking', payload: b });
+      }
+      const updatedRecords = await AppData.find({});
+      const bList = updatedRecords.filter(r => r.type === 'booking').map(r => ({ ...r.payload, _id: r._id }));
+      const rList = updatedRecords.filter(r => r.type === 'restaurant').map(r => r.payload.name);
+      io.emit('init', { bookings: bList, restaurants: rList.length > 0 ? rList : finalRestaurants });
+    });
+
+    // Aggiunta ristorante
+    socket.on('add_restaurant', async (name) => {
+      const existing = await AppData.findOne({ type: 'restaurant', 'payload.name': name });
+      if (!existing && name) {
+        await AppData.create({ type: 'restaurant', payload: { name } });
+      }
+      const updatedRecords = await AppData.find({});
+      const bList = updatedRecords.filter(r => r.type === 'booking').map(r => ({ ...r.payload, _id: r._id }));
+      const rList = updatedRecords.filter(r => r.type === 'restaurant').map(r => r.payload.name);
+      io.emit('init', { bookings: bList, restaurants: rList });
+    });
+
+    // Eliminazione ristorante
+    socket.on('delete_restaurant', async (name) => {
+      await AppData.deleteOne({ type: 'restaurant', 'payload.name': name });
+      await AppData.deleteMany({ type: 'booking', 'payload.restaurant': name }); // Rimuove anche le prenotazioni di quel ristorante
+      
+      const updatedRecords = await AppData.find({});
+      const bList = updatedRecords.filter(r => r.type === 'booking').map(r => ({ ...r.payload, _id: r._id }));
+      const rList = updatedRecords.filter(r => r.type === 'restaurant').map(r => r.payload.name);
+      io.emit('init', { bookings: bList, restaurants: rList });
+    });
+
+  } catch (e) {
+    console.error("Errore socket:", e);
+  }
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-  console.log(`Server reception attivo su porta ${PORT}`);
+  console.log(`Server cloud attivo su porta ${PORT}`);
 });
